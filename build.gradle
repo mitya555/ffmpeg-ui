@@ -1,0 +1,14 @@
+plugins {
+  id 'java'
+}
+
+repositories {
+  jcenter()
+}
+
+dependencies {
+    implementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.3.0'
+
+    // Use JUnit test framework
+    testImplementation 'junit:junit:4.12'
+}
