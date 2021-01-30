@@ -37,11 +37,11 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.function.Consumer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Observable;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -63,7 +63,7 @@ import javax.xml.bind.DatatypeConverter;
 import netscape.javascript.JSException;
 import netscape.javascript.JSObject;
 
-public class FFmpegProcess extends Observable {
+public class FFmpegProcess {
 
 	static class Buffer
 	{
@@ -943,9 +943,11 @@ public class FFmpegProcess extends Observable {
 	}
 
 	public enum Event { START, STOP }
-	
+
+	public Consumer<Event> eventHandler = arg -> {};
+
 	private void playMediaReader() throws InterruptedException {
-		setChanged(); notifyObservers(Event.START);
+		eventHandler.accept(Event.START);
 		MediaReader in_ = null;
 		try {
 			String contentType = "application/octet-stream";
@@ -1034,7 +1036,7 @@ public class FFmpegProcess extends Observable {
 		finally {
 			if (in_ != null) try { in_.close(); } catch (IOException e) { e.printStackTrace(); }
 			if (mediaStream != null) { try { mediaStream.close(); } catch (IOException e) { e.printStackTrace(); } mediaStream = null; }
-			setChanged(); notifyObservers(Event.STOP);
+			eventHandler.accept(Event.STOP);
 			debug("FFMPEG output thread ended."/*, "FFMPEG process terminated."*/);
 		}
 	}
@@ -1129,7 +1131,7 @@ public class FFmpegProcess extends Observable {
 						}
 						sumSquare = sum = cnt = 0;
 //						final int available = audioLine.available();
-//						debug("audioLine.available(): " + available + "\t\tplayed: " + (count - (audioLineBufferSize - available)) + " bytes; " + audioLine.getLongFramePosition() + " frames; " + audioLine.getMicrosecondPosition() + " µs");
+//						debug("audioLine.available(): " + available + "\t\tplayed: " + (count - (audioLineBufferSize - available)) + " bytes; " + audioLine.getLongFramePosition() + " frames; " + audioLine.getMicrosecondPosition() + " ï¿½s");
 //						debug("signal " + signal);
 					}
 				}
@@ -1196,7 +1198,7 @@ public class FFmpegProcess extends Observable {
 	private ListOfSNs curSNs = new ListOfSNs();
 	
 	private void playMediaDemuxer() throws InterruptedException {
-		setChanged(); notifyObservers(Event.START);
+		eventHandler.accept(Event.START);
 		MediaDemuxer in_ = null;
 		boolean hasAudio = !NoAudio(), hasVideo = !NoVideo();
 		try {
@@ -1434,7 +1436,7 @@ public class FFmpegProcess extends Observable {
 //			lastSN = 0;
 			synchronized (curSNs) { curSNs.clear(); curSNs.notifyAll(); }
 			if (jframe != null) { jframe.setVisible(false); jframe.dispose(); jframe = null; graphics = null; }
-			setChanged(); notifyObservers(Event.STOP);
+			eventHandler.accept(Event.STOP);
 			debug("FFMPEG output thread ended.", "FFMPEG process terminated.");
 		}
 	}
