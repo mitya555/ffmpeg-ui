@@ -3,15 +3,13 @@ package img_applet;
 import ffmpeg.FFmpeg;
 import img_applet.FFmpegProcess.TrackInfo;
 
-import java.applet.Applet;
-import java.awt.Button;
-import java.awt.Color;
-import java.awt.FlowLayout;
-//import java.awt.TextArea;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+//import java.awt.Button;
+//import java.awt.Color;
+//import java.awt.FlowLayout;
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayDeque;
@@ -20,23 +18,25 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.regex.Pattern;
 
-import javax.swing.JApplet;
-import javax.swing.SwingUtilities;
+//import javax.swing.JPanel;
+//import javax.swing.SwingUtilities;
 
 import netscape.javascript.JSObject;
 
-@SuppressWarnings("serial")
-public class ImgApplet extends JApplet {
+import static ffmpeg.ui.Application.browser;
 
-	private Button createButton(String label, ActionListener click, boolean active) {
-		Button button = new Button(); 
-		getContentPane().add(button);
-		button.addActionListener(click);
-		button.setLabel(label);
-		button.setEnabled(active);
-//		button.setVisible(active);
-		return button;
-	}
+//@SuppressWarnings("serial")
+public class ImgApplet /* extends JPanel */ {
+
+//	private Button createButton(String label, ActionListener click, boolean active) {
+//		Button button = new Button(); 
+//		getContentPane().add(button);
+//		button.addActionListener(click);
+//		button.setLabel(label);
+//		button.setEnabled(active);
+////		button.setVisible(active);
+//		return button;
+//	}
 
     private static boolean strEmpty(String str) { return str == null || str.length() == 0; }
 	private static boolean isNo(String str) { return str == null || "No".equalsIgnoreCase(str) || "False".equalsIgnoreCase(str); }
@@ -50,9 +50,9 @@ public class ImgApplet extends JApplet {
     private Queue<Integer> id_pool = new ArrayDeque<Integer>();
     private int ffmpeg_count = 0;
 
-	private Integer registerFFmpeg(FFmpegProcess ffmpeg, Object params, Applet applet) {
+	private Integer registerFFmpeg(FFmpegProcess ffmpeg, Map<String, String> params) {
 		Integer id = null;
-		if (ffmpeg.init(params, applet).HasInput()) {
+		if (ffmpeg.init(params).HasInput()) {
 			Integer id_from_pool = id_pool.poll();
 			id = id_from_pool != null ? id_from_pool : ++ffmpeg_count;
 			ffmpegs.put(id, ffmpeg.setId(id));
@@ -71,27 +71,26 @@ public class ImgApplet extends JApplet {
 		}
 	}
 
-	private Map<String, String> paramArrayToMap(String... params) {
-		final HashMap<String,String> _params = new HashMap<String, String>();
-		for (int i = 0; i < params.length - 1; i += 2) {
-			_params.put(params[i], params[i + 1]);
+	private Map<String, String> paramArrayToMap(JSObject jsArray) {
+		final HashMap<String,String> params = new HashMap<String, String>();
+		for (int i = 0; i < ((Integer) jsArray.getMember("length")) - 1; i += 2) {
+			params.put((String) jsArray.getSlot(i), (String) jsArray.getSlot(i + 1));
 		}
-		return _params;
+		return params;
 	}
 	
-	public FFmpegProcess createFFmpeg(final String jsCallback, String... params) {
-		final Map<String, String> _params = paramArrayToMap(params);
-		final Applet _applet = this;
+	public FFmpegProcess createFFmpeg(final String jsCallback, JSObject paramArray) {
+		final Map<String, String> params = paramArrayToMap(paramArray);
 //		return AccessController.doPrivileged(new PrivilegedAction<FFmpegProcess>() {
 //			@Override
 //			public FFmpegProcess run() {
 				final FFmpegProcess ffmpeg = new FFmpegProcess();
-				if (registerFFmpeg(ffmpeg, _params, _applet) != null && !strEmpty(jsCallback)) {
+				if (registerFFmpeg(ffmpeg, params) != null && !strEmpty(jsCallback)) {
 					final String[] _jsCallback = jsCallback.split("[,;]");
 					ffmpeg.eventHandler = (FFmpegProcess.Event arg) -> {
 						boolean playing = FFmpegProcess.Event.START.equals(arg);
 						for (String jsFunc : _jsCallback)
-							JSObject.getWindow(_applet).call(jsFunc, new Object[] { ffmpeg, playing });
+							browser.jsCall(jsFunc, new Object[] { ffmpeg, playing });
 					};
 				}
 				return ffmpeg;
@@ -99,14 +98,13 @@ public class ImgApplet extends JApplet {
 //		}); /* doPrivileged() */
 	}
 	
-	public int createFFmpegId(final String jsCallback, String... params) {
-		final Map<String, String> _params = paramArrayToMap(params);
-		final Applet _applet = this;
+	public int createFFmpegId(final String jsCallback, JSObject paramArray) {
+		final Map<String, String> params = paramArrayToMap(paramArray);
 //		return AccessController.doPrivileged(new PrivilegedAction<FFmpegProcess>() {
 //			@Override
 //			public FFmpegProcess run() {
 				final FFmpegProcess ffmpeg = new FFmpegProcess();
-				final Integer res = registerFFmpeg(ffmpeg, _params, _applet);
+				final Integer res = registerFFmpeg(ffmpeg, params);
 				if (res != null) {
 					final int id = res;
 					if (!strEmpty(jsCallback)) {
@@ -114,7 +112,7 @@ public class ImgApplet extends JApplet {
 						ffmpeg.eventHandler = (FFmpegProcess.Event arg) -> {
 							boolean playing = FFmpegProcess.Event.START.equals(arg);
 							for (String jsFunc : _jsCallback)
-								JSObject.getWindow(_applet).call(jsFunc, new Object[] { id, playing });
+								browser.jsCall(jsFunc, new Object[] { id, playing });
 						};
 					}
 					return id;
@@ -124,40 +122,38 @@ public class ImgApplet extends JApplet {
 //		}); /* doPrivileged() */
 	}
 
-	@Override
+	public ImgApplet(String codeBaseUrl, Map<String, String> parameters) {
+		try {
+			_codeBaseUrl = new URL(codeBaseUrl);
+		} catch (MalformedURLException e) {
+			throw new RuntimeException(e);
+		}
+		_parameters = parameters;
+	}
+	private final URL _codeBaseUrl;
+	private final Map<String, String> _parameters;
+	public URL getCodeBase() { return _codeBaseUrl; }
+	public String getParameter(String name) { return _parameters == null ? null : _parameters.get(name); }
+
 	public void init() {
-		
-		super.init();
 		
 		FFmpeg.load(getCodeBase());
 		
 		DEBUG = !isNo(getParameter("debug"));
 		
-        //Execute a job on the event-dispatching thread:
-        //creating this applet's GUI.
-//        try {
-//            javax.swing.SwingUtilities.invokeAndWait(this);
-//        } catch (Exception e) {
-//            System.err.println("Failed to create GUI");
-//            e.printStackTrace();
-//        }
-
 		try {
-			// Create defaultFFmpegProcess
-			//debug("Create default FFmpegProcess.");
-			ffmpeg0 = new FFmpegProcess();
-			if (registerFFmpeg(ffmpeg0, this, this) != null) {
-				final Button stopButton = createButton("Stop", new ActionListener() { @Override public void actionPerformed(ActionEvent e) {
-					ffmpeg0.stopPlayback(); 
-				} }, ffmpeg0.isPlaying());
-				final Button playButton = createButton("Play", new ActionListener() { @Override public void actionPerformed(ActionEvent e) {
-					ffmpeg0.play();
-				} }, !ffmpeg0.isPlaying());
-				ffmpeg0.eventHandler = (FFmpegProcess.Event arg) -> {
-					boolean playing = FFmpegProcess.Event.START.equals(arg);
-					stopButton.setEnabled(playing); /*stopButton.setVisible(playing);*/ playButton.setEnabled(!playing); /*startButton.setVisible(!playing);*/
-				};
-			}
+//			// Create defaultFFmpegProcess
+//			//debug("Create default FFmpegProcess.");
+//			ffmpeg0 = new FFmpegProcess();
+//			if (registerFFmpeg(ffmpeg0, this, this) != null) {
+//				final Button stopButton = createButton("Stop", e -> ffmpeg0.stopPlayback(), ffmpeg0.isPlaying());
+//				final Button playButton = createButton("Play", e -> ffmpeg0.play(), !ffmpeg0.isPlaying());
+//				ffmpeg0.eventHandler = (FFmpegProcess.Event arg) -> {
+//					boolean playing = FFmpegProcess.Event.START.equals(arg);
+//					stopButton.setEnabled(playing); /*stopButton.setVisible(playing);*/
+//					playButton.setEnabled(!playing); /*startButton.setVisible(!playing);*/
+//				};
+//			}
 	
 			// Remove as many temp files as possible
 			int _fnd = 0, _del = 0;
@@ -170,23 +166,12 @@ public class ImgApplet extends JApplet {
 			e.printStackTrace();
 		}
 		
-		SwingUtilities.invokeLater(new Runnable() {
-			@Override
-			public void run() {
-				
-				FlowLayout cont = new FlowLayout(FlowLayout.CENTER, 10, 10);
-				getContentPane().setLayout(cont);
-				
-//				setButton(stopButton, "Stop", new ActionListener() { @Override public void actionPerformed(ActionEvent e) { stopPlayback(); } }, isPlaying());
-//				setButton(playButton, "Play", new ActionListener() { @Override public void actionPerformed(ActionEvent e) { play(); } }, !isPlaying());
-				
-				getContentPane().setBackground(Color.WHITE);
-//				System.out.println(FFmpeg.exe.getAbsolutePath());
-//				console.append(FFmpeg.exe.getAbsolutePath() + "\n");
-				
-				debug("Initialized GUI");				
-			}
-		});
+//		SwingUtilities.invokeLater(() -> {
+//			FlowLayout cont = new FlowLayout(FlowLayout.CENTER, 10, 10);
+//			getContentPane().setLayout(cont);			
+//			getContentPane().setBackground(Color.WHITE);
+//			debug("Initialized GUI");				
+//		});
 	}
 
 
@@ -268,26 +253,13 @@ public class ImgApplet extends JApplet {
 	public boolean isDebug() { return DEBUG; }
 
 
-	@Override
 	public void stop() {
-		
 		for (FFmpegProcess ffmpeg : ffmpegs.values())
-			ffmpeg./*stopPlayback*/kill();
-		
-		super.stop();
+			ffmpeg./*stopPlayback*/kill();		
 	}
 
-	@Override
 	public void destroy() {
-		
 		for (FFmpegProcess ffmpeg : ffmpegs.values())
 			ffmpeg.kill();
-		
-		super.destroy();
 	}
-
-//	public static void main(String[] args) {
-//
-//	}
-
 }

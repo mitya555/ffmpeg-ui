@@ -216,24 +216,6 @@ function $trimVal(selector) {
 </style>
 </head>
 <body>
-<object id="img-applet-ie"
-  classid="clsid:8AD9C840-044E-11D1-B3E9-00805F499D93"
-  width="100" height="40" style="position:absolute;left:-1000px;top:-1000px;">
-  <param name="archive" value="img-applet.jar">
-  <param name="code" value="img_applet.ImgApplet">
-  <param name="java_status_events" value="true">
-  <!-- <param name="debug" value="yes"> -->
-  <comment>
-    <embed id="img-applet"
-      type="application/x-java-applet"
-      width="100" height="40" style="position:absolute;left:-1000px;top:-1000px;" 
-      archive="img-applet.jar"
-      code="img_applet.ImgApplet"
-      pluginspage="http://java.com/download/"
-      java_status_events="true" /><!-- 
-      debug="yes" -->
-  </comment>
-</object>
 <div id="sign-in-panel">
 <div class="container">
 <div class="form-inline form-group contCenter">
@@ -294,13 +276,12 @@ function enterButtonClick(e) {
 	if (val)
 	{
 		$.ajax({
-			url: 'http://' + getRtmpHostname() + '/rest/vchat/' + encodeURIComponent(val) + '/' + encodeURIComponent(window.name),
+			url: getHttpBaseUrl() + '/rest/vchat/' + encodeURIComponent(val) + '/' + encodeURIComponent(window.name),
 			cache: false,
 			dataType: 'json'
 		}).then(function (data) {
 			$('#sign-in-panel').css('display', 'none');
 			$('#video-chat-panel').css('display', '');
-			registerAppletStateHandler();
 		}, function (error) {
 			$('<div class="alert alert-warning" role="alert" style="margin-top:10px;">' + error.responseText + '</div>').insertAfter(e);
 		});
@@ -308,8 +289,7 @@ function enterButtonClick(e) {
 }
 
 // global variables
-var applets = [ document.getElementById( 'img-applet' ), document.getElementById( 'img-applet-ie' ) ],
-	_applet,
+var _applet, // <- passed from Java into onLoadHandler(applet) call, assigned inside onLoadHandler()
 	sn = 0,
 	ffmpeg_ids = {},
 	current_device_name = {}, current_device_mode = {}, current_device_resolution = {}, current_device_fps = {},
@@ -317,23 +297,6 @@ var applets = [ document.getElementById( 'img-applet' ), document.getElementById
 	keys = {}, // by ffmpeg_id
 	name_hash = {}, // by ffmpeg_id
 	audio_level = {}; // by name_hash
-
-function checkAppletMethod(applet, method) { return applet && (!method || (applet[method] || typeof(applet[method]) === "unknown")); }
-
-function checkApplet(applet, applet_ie, method) { if (!_applet) { if (applet && applet.createFFmpeg) { _applet = applet; } else if (applet_ie && typeof(applet_ie.createFFmpeg) === "unknown") { _applet = applet_ie; } } return checkAppletMethod(_applet, method); }
-
-function registerAppletStateHandler() {
-	var READY = 2;
-	// register onLoad handler if applet has not loaded yet
-	if (checkApplet(applets[0], applets[1])) {
-		if (_applet.status < READY)  {
-			_applet.onload = onLoadHandler;
-		} else if (_applet.status >= READY) {
-			// applet has already loaded or there was an error
-			onLoadHandler();
-		}
-	}
-}
 
 function getAdjustableRingBuffer(n) {
 	var isObj = typeof n === 'object', len = 0;
@@ -733,7 +696,7 @@ function callFFmpeg(op, p1) {
 	case _op.list_options: _ffmpeg_id = _applet.createFFmpegId( 'dataCallback', [
 			'ffmpeg-list_options', 'true',
 			'ffmpeg-f:i', 'dshow',
-			'ffmpeg-i', p1,			// device, e.g. 'video=Logitech QuickCam Communicate STX', or 'audio=Logitech Mic (Communicate STX)'
+			'ffmpeg-i', p1,        // device, e.g. 'video=Logitech QuickCam Communicate STX', or 'audio=Logitech Mic (Communicate STX)'
 			'ffmpeg-o', '',
 			'debug', debug_ffmpeg, // 'yes',
 		] ); break;
@@ -751,7 +714,11 @@ var debug_ffmpeg = window.location.search && window.location.search.indexOf('deb
 	img_num = 3;
 $.each(query_string, function (i, v) { if (v.name === "img-num") { img_num = parseInt(v.value); return false; } });
 
-function getRtmpHostname() { return window.location.hash && window.location.hash.length > 7 ? window.location.hash.substring(1) : window.location.hostname; }
+function getUrlFromHash(i) {
+	return window.location.hash.split('#')[i].replace(/[/\s\uFEFF\xA0]+$/, '');
+}
+function getRtmpBaseUrl() { return getUrlFromHash(1); }
+function getHttpBaseUrl() { return getUrlFromHash(2); }
 
 function getMyName() { return $('#enter-your-name-txt').val(); }
 
@@ -769,10 +736,12 @@ function keyFromNames(deviceType, opName, name) { return (opName || "capture") +
 
 function namesFromKey(key) { var tmp = key.split('-'); return { opName: tmp[0], name: decodeId(tmp[1]), deviceType: tmp[2] }; }
 
-function onLoadHandler() {
+function onLoadHandler(applet) {
 	// event handler for ready state
-	var rtmp_hostname = getRtmpHostname();
-	function getRtmpUrl(rtmp_app) { return 'rtmp://' + rtmp_hostname + '/rtmp/' + encodeURIComponent(rtmp_app); }
+	_applet = applet; // passed from Java
+	var rtmp_base_url = getRtmpBaseUrl();
+	var http_base_url = getHttpBaseUrl();
+	function getRtmpUrl(rtmp_app) { return rtmp_base_url + '/rtmp/' + encodeURIComponent(rtmp_app); }
 	// FFmpeg UI functions
 	function getCheckeds() { var checkeds = {}; for (var key in ffmpeg_ids) checkeds[key] = $("#" + jqId(key)).is(":checked"); return checkeds; }
 	function create$ffmpegUi(deviceType, checkeds, opName, name) {
@@ -1032,12 +1001,12 @@ function onLoadHandler() {
 	function listStreams () {
 		$.when(
 			$.ajax({
-				url: 'http://' + rtmp_hostname + '/rtmp/stat',
+				url: http_base_url + '/rtmp/stat',
 				cache: false,
 				dataType: "xml"
 			}),
 			$.ajax({
-				url: 'http://' + rtmp_hostname + '/rest/vchat/' + encodeURIComponent(getMyName()) + '/' + encodeURIComponent(window.name),
+				url: http_base_url + '/rest/vchat/' + encodeURIComponent(getMyName()) + '/' + encodeURIComponent(window.name),
 				cache: false,
 				dataType: 'json'
 			})
@@ -1165,7 +1134,7 @@ function onLoadHandler() {
 		}
 	}
 	var lastTextChatDataItem;
-	function textChatUrl() { return 'http://' + rtmp_hostname + '/rest/tchat' + (lastTextChatDataItem ? '/' + lastTextChatDataItem.msec + '/' + lastTextChatDataItem.num : ''); }
+	function textChatUrl() { return http_base_url + '/rest/tchat' + (lastTextChatDataItem ? '/' + lastTextChatDataItem.msec + '/' + lastTextChatDataItem.num : ''); }
 	function textChatText($cont, data) {
 		//$cont.empty();
 		data.sort(function (a, b) { var res = a.msec - b.msec; return res != 0 ? res : a.num - b.num; });

@@ -12,6 +12,7 @@ public class FFmpeg {
 	
 	static public void load(URL baseUrl) {
 		try {
+			baseUrl = new URL(baseUrl, JarLib.getOsSubDir() + "/");
 			String localVer = JarLib.getLocal("ffmpeg.build.txt"), remoteVer = null;
 			if (localVer != null)
 				remoteVer = JarLib.getUrl(new URL(baseUrl, "ffmpeg.build.txt"));

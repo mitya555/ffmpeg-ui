@@ -3,7 +3,6 @@ package img_applet;
 import ffmpeg.FFmpeg;
 import img_applet.FFmpegProcess.MediaDemuxer.Gettable;
 
-import java.applet.Applet;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.Insets;
@@ -62,6 +61,8 @@ import javax.xml.bind.DatatypeConverter;
 
 import netscape.javascript.JSException;
 import netscape.javascript.JSObject;
+
+import static ffmpeg.ui.Application.browser;
 
 public class FFmpegProcess {
 
@@ -358,7 +359,7 @@ public class FFmpegProcess {
 			@Override
 			public void close() throws IOException { tryDelete(); }
 			@Override
-			protected void finalize() throws Throwable { file.delete(); super.finalize(); }
+			protected void finalize() throws Throwable { file.delete(); }
 		}
 		static private class _FileBuffer extends _List<_File> {
 			_FileBuffer() throws IOException { super(); add(new _File()); write = head; used = 1; }
@@ -593,29 +594,26 @@ public class FFmpegProcess {
 		
 		private Object startLock = new Object();
 		public /*int*/String startHttpServer() throws InterruptedException {
-	        Thread httpThread = new Thread(new Runnable() {
-				@Override
-				public void run() {
-					try (ServerSocket serverSocket = new ServerSocket()) {
-						serverSocket.setReuseAddress(true);
-						serverSocket.bind(new InetSocketAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), 0), 1);
-						httpPort = serverSocket.getLocalPort();
-						httpAddress = serverSocket.getInetAddress();
-						synchronized (startLock) { debug("HTTP startLock.notify()"); startLock.notify(); }
-						AccessController.doPrivileged(new PrivilegedAction<Object>() {
-							@Override
-							public Object run() {
-								runHttpServer(serverSocket);
-								debug("HTTP streaming ended.");
-								return null;
-							}
-						}); /* doPrivileged() */
-					} catch (IOException e) {
-						e.printStackTrace();
-					} finally {
-						httpPort = 0;
-//						stopPlayback();
-					}
+	        Thread httpThread = new Thread(() -> {
+				try (ServerSocket serverSocket = new ServerSocket()) {
+					serverSocket.setReuseAddress(true);
+					serverSocket.bind(new InetSocketAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), 0), 1);
+					httpPort = serverSocket.getLocalPort();
+					httpAddress = serverSocket.getInetAddress();
+					synchronized (startLock) { debug("HTTP startLock.notify()"); startLock.notify(); }
+					AccessController.doPrivileged(new PrivilegedAction<Object>() {
+						@Override
+						public Object run() {
+							runHttpServer(serverSocket);
+							debug("HTTP streaming ended.");
+							return null;
+						}
+					}); /* doPrivileged() */
+				} catch (IOException e) {
+					e.printStackTrace();
+				} finally {
+					httpPort = 0;
+//					stopPlayback();
 				}
 	        });
 			synchronized (startLock) {
@@ -719,20 +717,14 @@ public class FFmpegProcess {
 	private boolean useStderr;
 	private ByteArrayOutputStream stderrOut;
 	
-	private Object params;
-	private String getParameter(String name) {
-		return params instanceof Applet ? ((Applet)params).getParameter(name) :
-			params instanceof Map<?,?> ? ((Map<String,String>)params).get(name) :
-				null;
-	}
-	private Applet applet;
+	private Map<String,String> params;
+	private String getParameter(String name) { return params == null ? null : params.get(name); }
 	private int id;
 	public FFmpegProcess setId(int id) { this.id = id; return this; }
 
-	public FFmpegProcess init(Object params, Applet applet) {
+	public FFmpegProcess init(Map<String,String> params) {
 		
 		this.params = params;
-		this.applet = applet;
 		
 		DEBUG = !isNo(getParameter("debug"));
 		DEBUG_FFMPEG = !isNo(getParameter("debug-ffmpeg"));
@@ -890,27 +882,21 @@ public class FFmpegProcess {
 		try {
 			ffmp = pb.start();
 			debug(">" + command/*, "FFMPEG process started."*/);
-			(ffmt = new Thread(new Runnable() {
-				@Override
-				public void run() {
-					try {
-						ffmp.waitFor();
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
+			(ffmt = new Thread(() -> {
+				try {
+					ffmp.waitFor();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
 				}
 			})).start();
-			new Thread(new Runnable() {
-				@Override
-				public void run() {
-					try {
-						if (demux_fMP4)
-							playMediaDemuxer();
-						else
-							playMediaReader();
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
+			new Thread(() -> {
+				try {
+					if (demux_fMP4)
+						playMediaDemuxer();
+					else
+						playMediaReader();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
 				}
 			}).start();
 		} catch (IOException e) {
@@ -918,26 +904,23 @@ public class FFmpegProcess {
 		}
 //		assert ffmp.getInputStream().read() == -1;
 		if (DEBUG_FFMPEG && !useStderr)
-			new Thread(new Runnable() {
-				@Override
-				public void run() {
-					int res, prev = 0;
-					BufferedConsoleOut conOut = new BufferedConsoleOut();
-					InputStream in_ = ffmp.getErrorStream();
-					try {
-						while ((res = in_.read()) != -1) {
-							if (prev == 13 && res != 10) {
-//								System.out.write(10);
-								conOut.write(10);
-							}
-//							System.out.write(res);
-							conOut.write(res);
-							prev = res;
+			new Thread(() -> {
+				int res, prev = 0;
+				BufferedConsoleOut conOut = new BufferedConsoleOut();
+				InputStream in_ = ffmp.getErrorStream();
+				try {
+					while ((res = in_.read()) != -1) {
+						if (prev == 13 && res != 10) {
+//							System.out.write(10);
+							conOut.write(10);
 						}
-						conOut.flush();
-					} catch (IOException e) {
-						e.printStackTrace();
+//						System.out.write(res);
+						conOut.write(res);
+						prev = res;
 					}
+					conOut.flush();
+				} catch (IOException e) {
+					e.printStackTrace();
 				}
 			}).start();
 	}
@@ -995,27 +978,24 @@ public class FFmpegProcess {
 			if (processFrameCallbackSet) {
 				final BlockingQueue<Integer> _notifyQueue = mediaStream.multiBuffer.notifyQueue = new ArrayBlockingQueue<Integer>(processFrameNumberOfConsumerThreads + 1);
 				final String _contentType = contentType; 
-				mediaStream.multiBuffer.startConsumerThreads(processFrameNumberOfConsumerThreads, new Runnable() {
-					@Override
-					public void run() {
-						JSObject jsWindow = JSObject.getWindow(applet);
-						DataOut dataOut = new DataOut(_contentType);
-						int attempts = 0; 
-						try {
-							while (_notifyQueue.take() != -200)
-								try {
-									FrameData fd = mediaStream.multiBuffer.getCurrentFrameData();
-									jsWindow.call(processFrameCallback, new Object[] { id, fd.sn, dataOut.toDataUri(fd.bytes) });
-									if (attempts > 0)
-										attempts = 0; // counts consecutive failures; reset for success
-								} catch (JSException | IOException e) {
-									e.printStackTrace();
-									if (++attempts >= 10)
-										break;
-								}
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
+				mediaStream.multiBuffer.startConsumerThreads(processFrameNumberOfConsumerThreads, () -> {
+					JSObject jsWindow = browser.getWindow();
+					DataOut dataOut = new DataOut(_contentType);
+					int attempts = 0; 
+					try {
+						while (_notifyQueue.take() != -200)
+							try {
+								FrameData fd = mediaStream.multiBuffer.getCurrentFrameData();
+								jsWindow.call(processFrameCallback, new Object[] { id, fd.sn, dataOut.toDataUri(fd.bytes) });
+								if (attempts > 0)
+									attempts = 0; // counts consecutive failures; reset for success
+							} catch (JSException | IOException e) {
+								e.printStackTrace();
+								if (++attempts >= 10)
+									break;
+							}
+					} catch (InterruptedException e) {
+						e.printStackTrace();
 					}
 				});
 			}
@@ -1079,28 +1059,25 @@ public class FFmpegProcess {
 				calcSignalLevelThreshold = (int)(calcSignalLevelInterval * audioFormat.getFrameSize() * audioFormat.getFrameRate()); // 17640 bytes = 0.1 sec * 4 bytes/frame * 44100 frames/sec
 				final ArrayBlockingQueue<Integer> _signalLevelQueue = new ArrayBlockingQueue<Integer>(10); // ~ 1 sec. worth = 100 ms * 10
 				signalLevelQueue = _signalLevelQueue;
-				new Thread(new Runnable() {
-					@Override
-					public void run() {
-						int _signalLevel;
-						JSObject jsWindow = JSObject.getWindow(applet);
-						int attempts = 0; 
-						try {
-							do {
-								_signalLevel = _signalLevelQueue.take();
-								try {
-									jsWindow.call(wavLevelChangeCallback, new Object[] { id, _signalLevel });
-									if (attempts > 0)
-										attempts = 0; // counts consecutive failures; reset for success
-								} catch (JSException e) {
-									e.printStackTrace();
-									if (++attempts >= 10)
-										break;
-								}
-							} while (_signalLevel != -200);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
+				new Thread(() -> {
+					int _signalLevel;
+					JSObject jsWindow = browser.getWindow();
+					int attempts = 0; 
+					try {
+						do {
+							_signalLevel = _signalLevelQueue.take();
+							try {
+								jsWindow.call(wavLevelChangeCallback, new Object[] { id, _signalLevel });
+								if (attempts > 0)
+									attempts = 0; // counts consecutive failures; reset for success
+							} catch (JSException e) {
+								e.printStackTrace();
+								if (++attempts >= 10)
+									break;
+							}
+						} while (_signalLevel != -200);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
 					}
 				}).start();
 				// start playing
@@ -1225,20 +1202,17 @@ public class FFmpegProcess {
 							try {
 								audioLinePlayer.open(new AudioFormat(trak.timeScale, trak.sampleSizeInBits, trak.channels, trak.signed, trak.bigEndian));
 								final BlockingQueue<Integer> _notifyQueue = mediaStream.multiBuffer.notifyQueue = new ArrayBlockingQueue<Integer>(2);
-								mediaStream.multiBuffer.startConsumerThreads(1, new Runnable() {
-									@Override
-									public void run() {
-										byte[] bytes;
-										try {
-											while (_notifyQueue.take() != -200) {
-												while ((bytes = mediaStream.multiBuffer.getCurrentBytes()) != null)
-													audioLinePlayer.audioLine.write(bytes, 0, bytes.length);
-//												debug("Audio Buffer empty");
-												//Thread.sleep(50);
-											}
-										} catch (IOException | InterruptedException e) {
-											e.printStackTrace();
+								mediaStream.multiBuffer.startConsumerThreads(1, () -> {
+									byte[] bytes;
+									try {
+										while (_notifyQueue.take() != -200) {
+											while ((bytes = mediaStream.multiBuffer.getCurrentBytes()) != null)
+												audioLinePlayer.audioLine.write(bytes, 0, bytes.length);
+//											debug("Audio Buffer empty");
+											// Thread.sleep(50);
 										}
+									} catch (IOException | InterruptedException e) {
+										e.printStackTrace();
 									}
 								});
 							} catch (LineUnavailableException e) {
@@ -1271,7 +1245,7 @@ public class FFmpegProcess {
 					String[] tmp = processFrameCallback.substring(1).split("[,;|:]");
 					dis = new Insets(tmp.length>0?parseInt0(tmp[0]):0,tmp.length>1?parseInt0(tmp[1]):0,tmp.length>2?parseInt0(tmp[2]):0,tmp.length>3?parseInt0(tmp[3]):0);
 				} else {
-					jsw = JSObject.getWindow(applet);
+					jsw = browser.getWindow();
 				}
 				final JSObject jsWindow = jsw;
 				final Insets drawInsets = dis;

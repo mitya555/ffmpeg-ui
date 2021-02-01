@@ -7,7 +7,7 @@ import java.util.zip.ZipInputStream;
 
 public class JarLib{
 
-  static public boolean loadLib(Class cl, String libname, boolean shared){
+  static public boolean loadLib(Class<?> cl, String libname, boolean shared){
     try{
       loadLibX(cl, libname, shared);
       return true;
@@ -35,7 +35,7 @@ public class JarLib{
     return false;
   }
 
-  static private void loadLibX(Class cl, String name, boolean shared)throws IOException, UnsatisfiedLinkError{
+  static private void loadLibX(Class<?> cl, String name, boolean shared)throws IOException, UnsatisfiedLinkError{
     String libname=System.mapLibraryName(name);
     URL url = cl.getResource(JarLib.getOsSubDir()+"/"+libname);
     if(url==null){ 
@@ -45,7 +45,7 @@ public class JarLib{
     System.out.println("JarLib.loadLib: Successfully loaded library ["+url+"]");
   }
 
-  static public File loadFile(Class cl, String name, boolean shared)throws IOException, UnsatisfiedLinkError{
+  static public File loadFile(Class<?> cl, String name, boolean shared)throws IOException, UnsatisfiedLinkError{
     URL url = cl.getResource(JarLib.getOsSubDir()+"/"+name);
     if(url==null){ 
       throw new UnsatisfiedLinkError(JarLib.class.getName()+".loadFile: Could not find file ["+name+"]");
@@ -148,11 +148,11 @@ public class JarLib{
     }
   }
 
-  static private void extract(File fn, URL url)throws IOException{
-    try (FileOutputStream out = new FileOutputStream(fn)) {
-      extract(out, url);
-    }
-  }
+//  static private void extract(File fn, URL url)throws IOException{
+//    try (FileOutputStream out = new FileOutputStream(fn)) {
+//      extract(out, url);
+//    }
+//  }
 
   static final String charset = "UTF-8"; // "US-ASCII"
   
@@ -175,7 +175,7 @@ public class JarLib{
   
   static public boolean deleteLocal(String filename) { return new File(tmpdir, "img_applet_" + filename).delete(); }
 
-  static private String getOsSubDir(){              // This is where I put my stuff
+  static public String getOsSubDir(){              // This is where I put my stuff
 
 //    System.err.println("java.library.path = "+System.getProperty("java.library.path"));
 //    System.err.println("os.name = "+System.getProperty("os.name"));
