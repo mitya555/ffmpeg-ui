@@ -8,20 +8,24 @@ import java.net.URL;
 
 public class FFmpeg {
 	
-	static public File exe;
+	public static File exe;
 	
-	static public void load(URL baseUrl) {
+	public static void load(URL baseUrl) {
 		try {
 			baseUrl = new URL(baseUrl, JarLib.getOsSubDir() + "/");
-			String localVer = JarLib.getLocal("ffmpeg.build.txt"), remoteVer = null;
+			final String verFileName = "ffmpeg.build.txt";
+			final String exeName = JarLib.getOsSubDir()
+					.startsWith("win") ? "ffmpeg.exe" : "ffmpeg";
+			String localVer = JarLib.getLocal(verFileName), remoteVer = null;
 			if (localVer != null)
-				remoteVer = JarLib.getUrl(new URL(baseUrl, "ffmpeg.build.txt"));
+				remoteVer = JarLib.getUrl(new URL(baseUrl, verFileName));
 			if (localVer == null || remoteVer.compareToIgnoreCase(localVer) != 0) {
-				JarLib.deleteLocal("ffmpeg.build.txt");
-				JarLib.deleteLocal("ffmpeg.exe");
+				JarLib.deleteLocal(verFileName);
+				JarLib.deleteLocal(exeName);
 			}
-			exe = JarLib.loadFile(new URL(baseUrl, "ffmpeg.zip"), "ffmpeg.exe", true);
-			JarLib.loadFile(new URL(baseUrl, "ffmpeg.build.txt"), "ffmpeg.build.txt", true);
+			exe = JarLib.loadFile(new URL(baseUrl, "ffmpeg.zip"), exeName, true);
+			exe.setExecutable(true, true);
+			JarLib.loadFile(new URL(baseUrl, verFileName), verFileName, true);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

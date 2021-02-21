@@ -1,5 +1,7 @@
 package ffmpeg.ui;
 
+import java.util.Map;
+
 import img_applet.ImgApplet;
 import javafx.application.Platform;
 import javafx.concurrent.Worker.State;
@@ -27,11 +29,13 @@ public class Browser extends Region {
        Platform.runLater(() -> getWindow().call(methodName, args));
    }
 
-   public Browser(String ffmpegExeBaseUrl, String rtmpBaseUrl, String httpBaseUrl) {
+   public Browser(String ffmpegExeBaseUrl, String rtmpBaseUrl, String httpBaseUrl,
+           String queryString, Map<String,String> params) {
+
        // apply the styles
        getStyleClass().add("browser");
        // create & initialize ImgApplet
-       applet = new ImgApplet(ffmpegExeBaseUrl, null);
+       applet = new ImgApplet(ffmpegExeBaseUrl, params);
        applet.init();
        engine.getLoadWorker().stateProperty().addListener((ov, oldState, newState) -> {
            if (newState == State.SUCCEEDED) {
@@ -43,7 +47,8 @@ public class Browser extends Region {
 //       webEngine.load("http://www.google.com/");
 //       webEngine.load("/imgplay2-.htm");
        engine.load(getClass().getClassLoader().getResource("imgplay2-.htm").toString() +
-               "#" + rtmpBaseUrl + "#" + httpBaseUrl);
+               (queryString == null || queryString.trim().length() == 0
+               ? "" : "?" + queryString) + "#" + rtmpBaseUrl + "#" + httpBaseUrl);
        //add the web view to the scene
        getChildren().add(browser);
    }

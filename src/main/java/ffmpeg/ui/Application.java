@@ -3,6 +3,7 @@ package ffmpeg.ui;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.Map;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
@@ -45,7 +46,8 @@ public class Application {
 //        text.setText("Welcome JavaFX!");
 //        root.getChildren().add(text);
 //        return (scene);
-        browser = new Browser("http://localhost:8080/ffmpeg/", "rtmp://localhost/", "http://localhost:8080/");
+        browser = new Browser("http://localhost:8080/ffmpeg/", "rtmp://localhost/", "http://localhost:8080/",
+        		"debug-java&debug-ffmpeg", Map.of("debug", "yes"));
         return new Scene(browser, 750, 500, Color.web("#666970"));
     }
 
