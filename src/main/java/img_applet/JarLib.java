@@ -202,4 +202,8 @@ public class JarLib{
     if(osname.startsWith("Mac")){ return "mac";}
     return "";
   }
+
+  static public String getOsName() {
+    return getOsSubDir().substring(0, 3);
+  }
 }

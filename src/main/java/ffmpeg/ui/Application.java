@@ -10,6 +10,7 @@ import java.util.logging.Logger;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
+import img_applet.JarLib;
 import javafx.application.Platform;
 import javafx.embed.swing.JFXPanel;
 import javafx.scene.Scene;
@@ -47,7 +48,8 @@ public class Application {
 //        root.getChildren().add(text);
 //        return (scene);
         browser = new Browser("http://localhost:8080/ffmpeg/", "rtmp://localhost/", "http://localhost:8080/",
-        		"debug-java&debug-ffmpeg", Map.of("debug", "yes"));
+        		"debug-java&debug-ffmpeg&debug-js&os-name=" + JarLib.getOsName(),
+        		Map.of("debug", "yes"));
         return new Scene(browser, 750, 500, Color.web("#666970"));
     }
 
