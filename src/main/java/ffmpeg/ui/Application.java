@@ -2,8 +2,14 @@ package ffmpeg.ui;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Map;
+import java.util.Properties;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
@@ -21,6 +27,8 @@ public class Application {
     static Logger logger = Logger.getLogger(Application.class.getName());
 
     public static Browser browser;
+
+    public static Properties properties;
 
     private static void initAndShowGUI() {
         // This method is invoked on the EDT thread
@@ -47,13 +55,45 @@ public class Application {
 //        text.setText("Welcome JavaFX!");
 //        root.getChildren().add(text);
 //        return (scene);
-        browser = new Browser("http://localhost:8080/ffmpeg/", "rtmp://localhost/", "http://localhost:8080/",
-        		"debug-java&debug-ffmpeg&debug-js&os-name=" + JarLib.getOsName(),
-        		Map.of("debug", "yes"));
+        browser = new Browser(
+                properties.getProperty("url.base.ffmpegexe", "http://localhost:8080/ffmpeg/"),
+                properties.getProperty("url.base.rtmp", "rtmp://localhost/"),
+                properties.getProperty("url.base.http", "http://localhost:8080/"),
+                "debug-java&debug-ffmpeg&debug-js&os-name=" + JarLib.getOsName(),
+                Map.of("debug", "yes")
+            );
         return new Scene(browser, 750, 500, Color.web("#666970"));
     }
 
-    public static void main(String[] args) throws URISyntaxException {
+    private static void consumeResource(ClassLoader classLoader, String resourceName, _Consumer consumer) {
+        try {
+            if (new File(classLoader.getResource(resourceName).toURI()).exists()) {
+                try (var inputStream = classLoader.getResourceAsStream(resourceName)) {
+                    consumer.consume(inputStream);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void consumeResource(String uri, String resourceName, _Consumer consumer) {
+        URLClassLoader ucl = null;
+        try {
+            ucl = new URLClassLoader(new URL[] { new URI(uri).toURL() });
+        } catch (MalformedURLException | URISyntaxException e) {
+            e.printStackTrace();
+        }
+        if (ucl != null) consumeResource(ucl, resourceName, consumer);
+    }
+
+    private interface _Consumer {
+        void consume(InputStream inputStream) throws IOException;
+    }
+
+    public static void main(String[] args) {
 //        JFrame frame = new JFrame("img-applet");
 //        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 //        ImgApplet applet = new ImgApplet();
@@ -67,13 +107,15 @@ public class Application {
         logger.info("Starting Application...");
   
         var classLoader = Application.class.getClassLoader();
-        if (new File(classLoader.getResource("logging.properties").toURI()).exists()) {
-            try (var loggingProperties = classLoader.getResourceAsStream("logging.properties")) {
-                LogManager.getLogManager().updateConfiguration(loggingProperties, null);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+
+        consumeResource(classLoader, "logging.properties",
+                inputStream -> LogManager.getLogManager().updateConfiguration(inputStream, null));
+
+        properties = new Properties();
+        consumeResource(classLoader, "internal.properties", properties::load);
+        consumeResource(classLoader, "application.properties", properties::load);
+        consumeResource("file:///~/.ffmpegui/", "application.properties", properties::load);
+
         SwingUtilities.invokeLater(Application::initAndShowGUI);
     }
 }
