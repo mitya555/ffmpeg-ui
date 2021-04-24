@@ -50,7 +50,7 @@ public class ImgApplet /* extends JPanel */ {
     private Queue<Integer> id_pool = new ArrayDeque<Integer>();
     private int ffmpeg_count = 0;
 
-	private Integer registerFFmpeg(FFmpegProcess ffmpeg, Map<String, String> params) {
+	private Integer addFFmpeg(FFmpegProcess ffmpeg, Map<String, String> params) {
 		Integer id = null;
 		if (ffmpeg.init(params).HasInput()) {
 			Integer id_from_pool = id_pool.poll();
@@ -79,42 +79,44 @@ public class ImgApplet /* extends JPanel */ {
 		return params;
 	}
 	
-	public FFmpegProcess createFFmpeg(final String jsCallback, JSObject paramArray) {
+	public FFmpegProcess createFFmpeg(boolean play, final String jsCallback, JSObject paramArray) {
 		final Map<String, String> params = paramArrayToMap(paramArray);
 //		return AccessController.doPrivileged(new PrivilegedAction<FFmpegProcess>() {
 //			@Override
 //			public FFmpegProcess run() {
 				final FFmpegProcess ffmpeg = new FFmpegProcess();
-				if (registerFFmpeg(ffmpeg, params) != null && !strEmpty(jsCallback)) {
+				if (addFFmpeg(ffmpeg, params) != null && !strEmpty(jsCallback)) {
 					final String[] _jsCallback = jsCallback.split("[,;]");
-					ffmpeg.eventHandler = (FFmpegProcess.Event arg) -> {
-						boolean playing = FFmpegProcess.Event.START.equals(arg);
+					ffmpeg.eventHandler = (event, data) -> {
+						boolean starting = FFmpegProcess.Event.START.equals(event);
 						for (String jsFunc : _jsCallback)
-							browser.jsCall(jsFunc, new Object[] { ffmpeg, playing });
+							browser.jsCall(jsFunc, new Object[] { ffmpeg, starting, data });
 					};
 				}
+				if (play) ffmpeg.play();
 				return ffmpeg;
 //			}
 //		}); /* doPrivileged() */
 	}
 	
-	public int createFFmpegId(final String jsCallback, JSObject paramArray) {
+	public int createFFmpegId(boolean play, final String jsCallback, JSObject paramArray) {
 		final Map<String, String> params = paramArrayToMap(paramArray);
 //		return AccessController.doPrivileged(new PrivilegedAction<FFmpegProcess>() {
 //			@Override
 //			public FFmpegProcess run() {
 				final FFmpegProcess ffmpeg = new FFmpegProcess();
-				final Integer res = registerFFmpeg(ffmpeg, params);
+				final Integer res = addFFmpeg(ffmpeg, params);
 				if (res != null) {
 					final int id = res;
 					if (!strEmpty(jsCallback)) {
 						final String[] _jsCallback = jsCallback.split("[,;]");
-						ffmpeg.eventHandler = (FFmpegProcess.Event arg) -> {
-							boolean playing = FFmpegProcess.Event.START.equals(arg);
+						ffmpeg.eventHandler = (event, data) -> {
+							boolean starting = FFmpegProcess.Event.START.equals(event);
 							for (String jsFunc : _jsCallback)
-								browser.jsCall(jsFunc, new Object[] { id, playing });
+								browser.jsCall(jsFunc, new Object[] { id, starting, data });
 						};
 					}
+					if (play) ffmpeg.play();
 					return id;
 				}
 				return 0;
@@ -174,11 +176,19 @@ public class ImgApplet /* extends JPanel */ {
 //		});
 	}
 
+	private void play(final FFmpegProcess ffmpeg) {
+		AccessController.doPrivileged(new PrivilegedAction<Void>() {
+			@Override public Void run() {
+				ffmpeg.play();
+				return null;
+			}
+		});
+	}
 
-	private void play(final FFmpegProcess ffmpeg) { AccessController.doPrivileged(new PrivilegedAction<Object>() { @Override public Object run() { ffmpeg.play(); return null; } }); }
-
-
-	public void play(final int id) { play(ffmpegs.get(id)); }
+	public void play(final int id) {
+		FFmpegProcess ffmpeg = ffmpegs.get(id);
+		play(ffmpeg);
+	}
 
 	public void stopPlayback(int id) { ffmpegs.get(id).stopPlayback(); }
 

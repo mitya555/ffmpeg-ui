@@ -15,7 +15,18 @@ $.fn.bootstrapBtn = bootstrapButton;            // give $().bootstrapBtn the Boo
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.ui-contextmenu/1.10.0/jquery.ui-contextmenu.min.js"></script>
 <script src="js/util.js"></script>
-<link rel="stylesheet" href="css/main.css">
+<link rel="stylesheet" href="css/main.css" id="css-main-css">
+<script>
+	var mainStylesheet = document.querySelector('#css-main-css');
+
+	mainStylesheet.onload = function() {
+	  // Do something interesting; the sheet has been loaded
+	}
+
+	mainStylesheet.onerror = function() {
+	  console.error("An error occurred loading the main stylesheet! An error occurred loading the main stylesheet! An error occurred loading the main stylesheet!");
+	}
+</script>
 </head>
 <body>
 <div id="sign-in-panel">
@@ -62,6 +73,8 @@ $.fn.bootstrapBtn = bootstrapButton;            // give $().bootstrapBtn the Boo
 </div>
 <script>
 
+enterButtonClick = () => {};
+
 $(function () {
 	$('#enter-your-name-txt').keypress(function (e) {
 		var code = e.keyCode || e.which;
@@ -71,24 +84,6 @@ $(function () {
 		}
 	}).focus();
 });
-
-function enterButtonClick(e) {
-	$('#sign-in-panel').find('.alert').remove();
-	var val = $trimVal('#enter-your-name-txt');
-	if (val)
-	{
-		$.ajax({
-			url: getHttpBaseUrl() + '/rest/vchat/' + encodeURIComponent(val) + '/' + encodeURIComponent(window.name),
-			cache: false,
-			dataType: 'json'
-		}).then(function (data) {
-			$('#sign-in-panel').css('display', 'none');
-			$('#video-chat-panel').css('display', '');
-		}, function (error) {
-			$('<div class="alert alert-warning" role="alert" style="margin-top:10px;">' + error.responseText + '</div>').insertAfter(e);
-		});
-	}
-}
 
 // global variables
 var _applet, // <- passed from Java into onLoadHandler(applet) call, assigned inside onLoadHandler()
@@ -209,11 +204,11 @@ function recreateFFmpeg(key, callback, param_arr) {
 		playing = _applet.isPlaying(ffmpeg_id);
 		removeFFmpeg(key);
 	}
-	ffmpeg_id = ffmpeg_ids[key] = _applet.createFFmpegId(callback, param_arr);
+	ffmpeg_id = ffmpeg_ids[key] = _applet.createFFmpegId(playing, callback, param_arr);
 	keys[ffmpeg_id] = key;
 	name_hash[ffmpeg_id] = namesFromKey(key).name.hashCode();
-	if (playing)
-		_applet.play(ffmpeg_id);
+	// if (playing)
+	// 	_applet.play(ffmpeg_id);
 }
 
 var _op = {
@@ -356,18 +351,18 @@ function callFFmpeg(op, p1) {
 	var _ffmpeg_id, defer = $.Deferred().always(function () {
 		if (_ffmpeg_id) {
 			_applet.removeFFmpegById(_ffmpeg_id);
-			//alert("remove: " + _ffmpeg_id);
+			// alert("remove: " + _ffmpeg_id);
 		}
 	});
-	window.dataCallback = function (ffmpeg_id, playing) {
-		if (!playing) {
-			defer.resolve(_applet.getStderrData(ffmpeg_id));
-			//alert("resolve: " + ffmpeg_id);
+	window.dataCallback = function (ffmpeg_id, starting, data) {
+		if (!starting) {
+			defer.resolve(/* _applet.getStderrData(ffmpeg_id) */data);
+			// alert("resolve: " + ffmpeg_id);
 		}
 	};
 	switch (op) {
 
-	case _op.list_devices: _ffmpeg_id = _applet.createFFmpegId( 'dataCallback', [
+	case _op.list_devices: _ffmpeg_id = _applet.createFFmpegId( true, 'dataCallback', [
 			'ffmpeg-list_devices', 'true',
 			'ffmpeg-f:i', ffmpegSystem(),
 			'ffmpeg-i', 'dummy',
@@ -375,7 +370,7 @@ function callFFmpeg(op, p1) {
 			'debug', debug_ffmpeg, // 'yes',
 		] ); break;
 
-	case _op.list_options: _ffmpeg_id = _applet.createFFmpegId( 'dataCallback', [
+	case _op.list_options: _ffmpeg_id = _applet.createFFmpegId( true, 'dataCallback', [
 			'ffmpeg-list_options', 'true',
 			'ffmpeg-f:i', 'dshow',
 			'ffmpeg-i', p1,        // device, e.g. 'video=Logitech QuickCam Communicate STX', or 'audio=Logitech Mic (Communicate STX)'
@@ -383,9 +378,9 @@ function callFFmpeg(op, p1) {
 			'debug', debug_ffmpeg, // 'yes',
 		] ); break;
 	}
-	if (_ffmpeg_id) {
-		_applet.play(_ffmpeg_id);
-	}
+	// if (_ffmpeg_id) {
+	// 	_applet.play(_ffmpeg_id);
+	// }
 	return defer.promise();
 }
 
@@ -460,7 +455,7 @@ function onLoadHandler(applet) {
 	var ldCnt = 0;
 	function listDevices () {
 		$("#deviceContainer select").css("visibility", "hidden");
-		callFFmpeg(_op.list_devices).then(function (res) {
+		return callFFmpeg(_op.list_devices).then(function (res) {
 			// DeviceType class
 			function DeviceType(deviceType) {
 				this.deviceType = deviceType;
@@ -867,9 +862,25 @@ function onLoadHandler(applet) {
 		$('.tc-ts')[this.checked ? 'removeClass' : 'addClass']('hidden');
 	}), $textChatTxtCont = $('#textContainer');
 	// start everything
-	listDevices();
-	refreshStreams();
-	refreshTextChat();
+	listDevices().then(() => enterButtonClick = (e) => {
+		$('#sign-in-panel').find('.alert').remove();
+		var val = $trimVal('#enter-your-name-txt');
+		if (val)
+		{
+			$.ajax({
+				url: getHttpBaseUrl() + '/rest/vchat/' + encodeURIComponent(val) + '/' + encodeURIComponent(window.name),
+				cache: false,
+				dataType: 'json'
+			}).then(function (data) {
+				$('#sign-in-panel').css('display', 'none');
+				$('#video-chat-panel').css('display', '');
+				refreshStreams();
+				refreshTextChat();
+			}, function (error) {
+				$('<div class="alert alert-warning" role="alert" style="margin-top:10px;">' + error.responseText + '</div>').insertAfter(e);
+			});
+		}
+	});
 }
 
 // frame consumer threads in Java with the callback function below.

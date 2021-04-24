@@ -36,13 +36,14 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import javax.imageio.IIOException;
 import javax.imageio.ImageIO;
@@ -702,7 +703,6 @@ public class FFmpegProcess {
     }
 
 	private Process ffmp;
-	private Thread ffmt;
 //	private volatile boolean ffm_stop;
 
 	private boolean demux_fMP4, dropUnusedFrames;
@@ -804,13 +804,13 @@ public class FFmpegProcess {
 	private boolean NoAudio() { return optValue.containsKey("an"); }
 	private boolean NoVideo() { return optValue.containsKey("vn"); }
 	
-	public boolean isPlaying() { return ffmt != null && ffmt.isAlive(); }
+	public boolean isPlaying() { return ffmp != null && ffmp.isAlive(); }
 	
 	public void play() {
-		
+
 		if (isPlaying())
 			return;
-				
+
 		List<String> command = new ArrayList<String>();
 		command.add(FFmpeg.exe.getAbsolutePath());
 //		command.addAll(Arrays.asList(new String[] {
@@ -882,13 +882,6 @@ public class FFmpegProcess {
 		try {
 			ffmp = pb.start();
 			debug(">" + command/*, "FFMPEG process started."*/);
-			(ffmt = new Thread(() -> {
-				try {
-					ffmp.waitFor();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			})).start();
 			new Thread(() -> {
 				try {
 					if (demux_fMP4)
@@ -927,10 +920,10 @@ public class FFmpegProcess {
 
 	public enum Event { START, STOP }
 
-	public Consumer<Event> eventHandler = arg -> {};
+	public BiConsumer<Event, String> eventHandler = (event, data) -> {};
 
 	private void playMediaReader() throws InterruptedException {
-		eventHandler.accept(Event.START);
+		eventHandler.accept(Event.START, null);
 		MediaReader in_ = null;
 		try {
 			String contentType = "application/octet-stream";
@@ -1016,7 +1009,7 @@ public class FFmpegProcess {
 		finally {
 			if (in_ != null) try { in_.close(); } catch (IOException e) { e.printStackTrace(); }
 			if (mediaStream != null) { try { mediaStream.close(); } catch (IOException e) { e.printStackTrace(); } mediaStream = null; }
-			eventHandler.accept(Event.STOP);
+			eventHandler.accept(Event.STOP, safeGetStderrData());
 			debug("FFMPEG output thread ended."/*, "FFMPEG process terminated."*/);
 		}
 	}
@@ -1175,7 +1168,7 @@ public class FFmpegProcess {
 	private ListOfSNs curSNs = new ListOfSNs();
 	
 	private void playMediaDemuxer() throws InterruptedException {
-		eventHandler.accept(Event.START);
+		eventHandler.accept(Event.START, null);
 		MediaDemuxer in_ = null;
 		boolean hasAudio = !NoAudio(), hasVideo = !NoVideo();
 		try {
@@ -1410,7 +1403,7 @@ public class FFmpegProcess {
 //			lastSN = 0;
 			synchronized (curSNs) { curSNs.clear(); curSNs.notifyAll(); }
 			if (jframe != null) { jframe.setVisible(false); jframe.dispose(); jframe = null; graphics = null; }
-			eventHandler.accept(Event.STOP);
+			eventHandler.accept(Event.STOP, null);
 			debug("FFMPEG output thread ended.", "FFMPEG process terminated.");
 		}
 	}
@@ -1418,17 +1411,17 @@ public class FFmpegProcess {
 	public byte[] getData() throws IOException { return mediaStream != null ? mediaStream.getData() : null; }
 
 	public String getDataURI() throws IOException { return mediaStream != null ? mediaStream.getDataURI() : null; }
-	
+
 	public int getSN() { return mediaStream != null ? mediaStream.multiBuffer.getSN() : 0; }
-	
+
 	int getQueueLength() { return mediaStream != null ? mediaStream.multiBuffer.getQueueLength() : 0; }
-	
+
 	public boolean isStreaming() { return mediaStream != null ? mediaStream.isStreaming() : false; }
-	
+
 	public String startHttpServer() throws InterruptedException { return mediaStream != null ? mediaStream.startHttpServer() : null; } 
 
 	public String getVideoDataURI() throws IOException { return demuxVideoStream != null ? demuxVideoStream.getDataURI() : null; }
-	
+
 	public int getVideoSN() { return demuxVideoStream != null ? demuxVideoStream.multiBuffer.getSN() : 0; }
 
 	public int getVideoQueueLength() { return demuxVideoStream != null ? demuxVideoStream.multiBuffer.getQueueLength() : 0; }
@@ -1439,8 +1432,26 @@ public class FFmpegProcess {
 
 	public TrackInfo getVideoTrackInfo() { return demuxVideoStream != null ? demuxVideoStream.trackInfo : null; }
 
-	public String getStderrData() throws IOException { return stderrOut != null ? stderrOut.toString("UTF-8") : null; }
-	
+	public String getStderrData() throws IOException {
+		if (stderrOut != null) {
+			final String data = stderrOut.toString("UTF-8");
+			debug(data);
+			return data;
+		} else {
+			debug("data = null");
+			return null;
+		}
+	}
+
+	public String safeGetStderrData() {
+		try {
+			return getStderrData();
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
 	public void setFFmpegParam(String name, String value) { ffmpegParams.put(name, value); }
 	public void removeFFmpegParam(String name) { ffmpegParams.remove(name); }
 	
@@ -1483,7 +1494,7 @@ public class FFmpegProcess {
 		if (isPlaying()) {
 			quitProcess();
 			try {
-				ffmt.join(500);
+				ffmp.waitFor(500, TimeUnit.MILLISECONDS);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}

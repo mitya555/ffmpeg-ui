@@ -124,7 +124,8 @@ public class JarLib{
         try (ZipInputStream zip = new ZipInputStream(in)) {
           ZipEntry entry;
           while((entry = zip.getNextEntry())!=null) {
-            if (entry.getName().equalsIgnoreCase(filename)) {
+            // if (entry.getName().equalsIgnoreCase(filename)) {
+            if (!entry.isDirectory()) {
               copyStream(out, zip);
               break;
             }

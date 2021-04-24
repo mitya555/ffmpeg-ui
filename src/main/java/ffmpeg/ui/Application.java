@@ -59,7 +59,7 @@ public class Application {
                 properties.getProperty("url.base.ffmpegexe", "http://localhost:8080/ffmpeg/"),
                 properties.getProperty("url.base.rtmp", "rtmp://localhost/"),
                 properties.getProperty("url.base.http", "http://localhost:8080/"),
-                "debug-java&debug-ffmpeg&debug-js&os-name=" + JarLib.getOsName(),
+                "debug-java&debug-ffmpeg&debug-js&os-name=" + JarLib.getOsName(), // ""
                 Map.of("debug", "yes")
             );
         return new Scene(browser, 750, 500, Color.web("#666970"));
@@ -67,7 +67,8 @@ public class Application {
 
     private static void consumeResource(ClassLoader classLoader, String resourceName, _Consumer consumer) {
         try {
-            if (new File(classLoader.getResource(resourceName).toURI()).exists()) {
+            URL url = classLoader.getResource(resourceName);
+            if (url != null && new File(url.toURI()).exists()) {
                 try (var inputStream = classLoader.getResourceAsStream(resourceName)) {
                     consumer.consume(inputStream);
                 } catch (IOException e) {
