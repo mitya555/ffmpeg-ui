@@ -15,18 +15,73 @@ $.fn.bootstrapBtn = bootstrapButton;            // give $().bootstrapBtn the Boo
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.ui-contextmenu/1.10.0/jquery.ui-contextmenu.min.js"></script>
 <script src="js/util.js"></script>
-<link rel="stylesheet" href="css/main.css" id="css-main-css">
+<!-- <link rel="stylesheet" href="css/main.css" id="css-main-css">
 <script>
 	var mainStylesheet = document.querySelector('#css-main-css');
-
+	
 	mainStylesheet.onload = function() {
 	  // Do something interesting; the sheet has been loaded
 	}
-
+	
 	mainStylesheet.onerror = function() {
-	  console.error("An error occurred loading the main stylesheet! An error occurred loading the main stylesheet! An error occurred loading the main stylesheet!");
+	  console.log("An error occurred loading the main stylesheet! An error occurred loading the main stylesheet! An error occurred loading the main stylesheet!");
 	}
-</script>
+</script> -->
+<style>
+
+.ui-resizable-handle { cursor: nw-resize; }
+.ui-button { /*float: right;*/ display: inline-block; cursor: pointer; /*margin-bottom: -3px;*/ }
+.ui-right { vertical-align: top; float: right; }
+
+input[type=checkbox] { /*width: 8px; height: 8px;*/ margin-right: 5px; }
+
+body { /*color: #508; line-height: 1.2;*/ }
+
+.contCenter {  text-align: center; /*margin-top: 50%; float: none;*/ }
+.contRightTop { width: 20%; float: right; clear: both; margin: 4px 4px 0px 0px; min-width: 85px; }
+.contLeftTop { position: absolute; margin: 4px 4px 0px 0px; border: none; }
+
+.boxHead { text-align: center; /*white-space: nowrap;*/ min-width: 85px; cursor: default; }
+/*#playbackContainer .ui-icon { background-image: url("//code.jquery.com/ui/1.11.4/themes/black-tie/images/ui-icons_ededed_256x240.png"); }*/
+
+.contCheckbox { white-space: nowrap; }
+.contCheckbox input[type=checkbox] { /*width: 3px; height: 3px; visibility: hidden; margin: 0;*/ display: none; }
+.contCheckbox label {
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+    cursor: pointer;
+    color: #333;
+}
+.contCheckbox input[type=checkbox]:checked + label {
+    color: #26ca28;
+}
+.contCheckbox input[type=checkbox]:disabled + label {
+    color: #bbb;
+    cursor: default;
+}
+.contCheckbox.unconfirmed input[type=checkbox] + label {
+    color: #bbb;
+}
+.contCheckbox.unconfirmed input[type=checkbox]:checked + label {
+    color: #e05050;
+}
+
+.dropdown { display: inline-block; }
+.dropdown select { border-width: 0; }
+
+label.-bs-icon- { margin-bottom: 0; }
+
+.ui-contextmenu, .dropdown-menu { font-size: 80%; z-index: 150; }
+.dropdown-menu { padding-right: 2px; }
+.menu-container { /*clear: both;*/ text-align: right; white-space: nowrap; }
+.menu-label { margin-left: 2px; display: inline-block; /*text-align: left;*/ float: left; }
+
+.hidden { display: none; }
+
+</style>
 </head>
 <body>
 <div id="sign-in-panel">
@@ -39,6 +94,9 @@ $.fn.bootstrapBtn = bootstrapButton;            // give $().bootstrapBtn the Boo
 </div>
 </div>
 <div id="video-chat-panel" style="display:none;">
+	<div id="logContainer" style="display:none;" class="contLeftTop">
+		<pre id="-log-" style="font-size: 8pt; background-color: transparent; border: none;"></pre>
+	</div>
 	<div id="deviceContainer" class="contRightTop">
 		<div class='boxHead ui-state-default ui-corner-all' style='/*background-color:cyan;*/'>
 			Capture
@@ -61,7 +119,7 @@ $.fn.bootstrapBtn = bootstrapButton;            // give $().bootstrapBtn the Boo
 		<div>
 			<textarea id='text-chat-text' class='form-control input-sm' rows='5'></textarea>
 			<input type='checkbox' id='text-chat-timestamp' style='/*float:right;*//*font-size:90%;*/width:10px;height:10px;' /> 
-			<label for='text-chat-timestamp' style='/*float:right;*/font-size:90%;'>Timestamp</label>
+			<label for='text-chat-timestamp' style='/*float:right;*/font-size:70%;font-weight:normal;'>timestamp</label>
 			<button type="button" id="text-chat-btn" title="Send" style='float:right;font-size:80%;'><!--  class="btn btn-default btn-xs" -->
 				<i class='fa fa-send-o'></i>
 				Send
@@ -86,8 +144,7 @@ $(function () {
 });
 
 // global variables
-var _applet, // <- passed from Java into onLoadHandler(applet) call, assigned inside onLoadHandler()
-	sn = 0,
+var sn = 0,
 	ffmpeg_ids = {},
 	current_device_name = {}, current_device_mode = {}, current_device_resolution = {}, current_device_fps = {},
 	videos = {},
@@ -151,6 +208,7 @@ function createVideoCanvas (container, resizable, imgnum) {
 
 function checkboxClick(checkbox) {
 	var key = checkbox.id, play = checkbox.checked;
+	debug(`key = ${key}  ffmpeg_id = ${ffmpeg_ids[key]}`);
 	_applet[play?'play':'stopPlayback'](ffmpeg_ids[key]);
 }
 function checkboxCallback(ffmpeg_id, playing) {
@@ -170,7 +228,7 @@ function videoCallback(ffmpeg_id, playing) {
 }
 
 function audioLevelCallback(ffmpeg_id, level) {
-	//console.log("audio level " + level);
+	// debug("audio level " + level);
 	var _name_hash = name_hash[ffmpeg_id];
 	audio_level[_name_hash] = level;
 	window.setTimeout(function () { $('#a' + _name_hash).css(audioLevelCss(level)); }, 0);
@@ -420,9 +478,8 @@ function keyFromNames(deviceType, opName, name) { return (opName || "capture") +
 
 function namesFromKey(key) { var tmp = key.split('-'); return { opName: tmp[0], name: decodeId(tmp[1]), deviceType: tmp[2] }; }
 
-function onLoadHandler(applet) {
+function onLoadHandler() {
 	// event handler for ready state
-	_applet = applet; // passed from Java
 	var rtmp_base_url = getRtmpBaseUrl();
 	var http_base_url = getHttpBaseUrl();
 	function getRtmpUrl(rtmp_app) { return rtmp_base_url + '/rtmp/' + encodeURIComponent(rtmp_app); }
@@ -727,7 +784,7 @@ function onLoadHandler(applet) {
 			for (var i = 0; i < data2[0].length; i++) {
 				var restName = data2[0][i];
 				if (!names[restName]) {
-					rtmpStreams.push({ rtmp_app: restName + "|audio", streamType: "audio", deviceType: "audio", name: restName, unconfirmed: true });
+					rtmpStreams.push({ rtmp_app: restName + dlm + "audio", streamType: "audio", deviceType: "audio", name: restName, unconfirmed: true });
 					names[restName] = true;
 				}
 			}
@@ -862,25 +919,29 @@ function onLoadHandler(applet) {
 		$('.tc-ts')[this.checked ? 'removeClass' : 'addClass']('hidden');
 	}), $textChatTxtCont = $('#textContainer');
 	// start everything
-	listDevices().then(() => enterButtonClick = (e) => {
+	enterButtonClick = (e) => {
 		$('#sign-in-panel').find('.alert').remove();
 		var val = $trimVal('#enter-your-name-txt');
 		if (val)
 		{
-			$.ajax({
-				url: getHttpBaseUrl() + '/rest/vchat/' + encodeURIComponent(val) + '/' + encodeURIComponent(window.name),
-				cache: false,
-				dataType: 'json'
-			}).then(function (data) {
-				$('#sign-in-panel').css('display', 'none');
+			$('#sign-in-panel').css('display', 'none');
+			$.when(
+				listDevices(),
+				$.ajax({
+					url: getHttpBaseUrl() + '/rest/vchat/' + encodeURIComponent(val) + '/' + encodeURIComponent(window.name),
+					cache: false,
+					dataType: 'json'
+				}),
+			).then(function (data) {
 				$('#video-chat-panel').css('display', '');
 				refreshStreams();
 				refreshTextChat();
 			}, function (error) {
+				$('#sign-in-panel').css('display', '');
 				$('<div class="alert alert-warning" role="alert" style="margin-top:10px;">' + error.responseText + '</div>').insertAfter(e);
 			});
 		}
-	});
+	};
 }
 
 // frame consumer threads in Java with the callback function below.
@@ -908,7 +969,7 @@ function render() {
 				// drop frames accumulated in the queue
 /*
 				while (_applet.getSN(ffmpeg_ids[key]) > sn) {
-					console.log("dropped frame # " + sn);
+					debug("dropped frame # " + sn);
 					sn = _applet.getSN(ffmpeg_ids[key]);
 					dataURI = _applet.getDataURI(ffmpeg_ids[key]);
 				}

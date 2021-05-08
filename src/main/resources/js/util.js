@@ -111,7 +111,7 @@ function getAdjustableRingBuffer(n) {
 			status[i] = 0;
 			pool.push({ i: i });
 		}
-	function logLenMsg() { if (debug_js && console) console.log('RingBuffer Length = ' + (len - pool.length)); }
+	function logLenMsg() { if (debug_js) debug('RingBuffer Length = ' + (len - pool.length)); }
 	var list = pool.pop();
 	list.next = list;
 	var frames = { n: 0 };
@@ -146,7 +146,7 @@ function getAdjustableRingBuffer(n) {
 				}
 			}*/ // commented out above: releasing resources from the list back to the pool
 			if (debug_js && status[next.i] !== 0)
-				console.log('Dropped Frame # ' + status[next.i]);
+				debug('Dropped Frame # ' + status[next.i]);
 			status[(list = next).i] = (frames = frames.next).n = frame_n;
 			return list.i;
 		},
@@ -166,8 +166,8 @@ function getRingBuffer(n) {
 	}
 	list = listClose(list);
 	frames = listClose(frames);
-	if (debug_js && console)
-		console.log('RingBuffer Length = ' + len);
+	if (debug_js)
+		debug('RingBuffer Length = ' + len);
 	return {
 		get: function(frame_n) {
 			var next = list.next;
@@ -177,7 +177,7 @@ function getRingBuffer(n) {
 			if (!found)
 				next = list.next;
 			if (debug_js && status[next.i] !== 0)
-				console.log('Dropped Frame # ' + status[next.i]);
+				debug('Dropped Frame # ' + status[next.i]);
 			status[(list = next).i] = (frames = frames.next).n = frame_n;
 			return list.i;
 		},
@@ -188,21 +188,21 @@ function getRingBuffer(n) {
 function getSimpleRingBuffer(n) {
 	var len = n.length, ind = -1, status = {};
 	var total = 0, dropped = 0, _dropped = 0;
-	if (debug_js && console) {
+	if (debug_js) {
 		for (var i in n)
 			status[n[i]] = 0;
-		console.log('RingBuffer Length = ' + len);
+		debug('RingBuffer Length = ' + len);
 		return {
 			get: function(frame_n) {
 				var i = n[ind = (ind + 1) % len];
 				total++;
 				if (status[i] !== 0) {
 					_dropped++;
-					//console.log('Dropped Frame # ' + status[i]);
+					// debug('Dropped Frame # ' + status[i]);
 				}
 				if (total % 100 === 0) {
 					dropped += _dropped;
-					console.log('Total: ' + total + '; \t Dropped: ' + dropped + '; \t Ratio: ' + (total/dropped).toFixed(2) + '; \t Dropped (last 100): ' + _dropped + '; \t Ratio (last 100): ' + (100./_dropped).toFixed(2));
+					debug('Total: ' + total + '; \t Dropped: ' + dropped + '; \t Ratio: ' + (total/dropped).toFixed(2) + '; \t Dropped (last 100): ' + _dropped + '; \t Ratio (last 100): ' + (100./_dropped).toFixed(2));
 					_dropped = 0;
 				}
 				status[i] = frame_n;
@@ -217,3 +217,13 @@ function getSimpleRingBuffer(n) {
 		};
 	}
 } 
+
+function debug(msg) {
+	// if (debug_js && console) console.log(msg);
+	if (debug_js) {
+		let $log = $('#-log-');
+		let $logCont = $('#logContainer');
+		if ($logCont.is(':hidden')) $logCont.show();
+		$log.text($log.text() + msg + '\n');
+	}
+}

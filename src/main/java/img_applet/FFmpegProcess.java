@@ -2,6 +2,7 @@ package img_applet;
 
 import ffmpeg.FFmpeg;
 import img_applet.FFmpegProcess.MediaDemuxer.Gettable;
+import javafx.application.Platform;
 
 import java.awt.Graphics;
 import java.awt.Image;
@@ -238,7 +239,7 @@ public class FFmpegProcess {
 		private int prev_sn;
 		private BufferedConsoleOut errOut = new BufferedConsoleOut(System.err); 
 		@Override
-		byte[] getBytes(Buffer b) throws IOException { synchronized (b) { return Arrays.copyOf(b.b, b.len); } }
+		byte[] getBytes(Buffer b) throws IOException { synchronized (b) { return Arrays.copyOf(b.b, b.len < 0 ? 0 : b.len); } }
 		@Override
 		byte[] getCurrentBytes() throws IOException {
 			Buffer currentBuffer = getCurrentBuffer();
@@ -878,7 +879,7 @@ public class FFmpegProcess {
 //		assert pb.redirectInput() == ProcessBuilder.Redirect.PIPE;
 //		assert pb.redirectOutput().file() == log;
 		if (!DEBUG_FFMPEG && !useStderr)
-			pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+			pb.redirectError(ProcessBuilder.Redirect.DISCARD);
 		try {
 			ffmp = pb.start();
 			debug(">" + command/*, "FFMPEG process started."*/);
@@ -979,7 +980,7 @@ public class FFmpegProcess {
 						while (_notifyQueue.take() != -200)
 							try {
 								FrameData fd = mediaStream.multiBuffer.getCurrentFrameData();
-								jsWindow.call(processFrameCallback, new Object[] { id, fd.sn, dataOut.toDataUri(fd.bytes) });
+								Platform.runLater(() -> jsWindow.call(processFrameCallback, new Object[] { id, fd.sn, dataOut.toDataUri(fd.bytes) }));
 								if (attempts > 0)
 									attempts = 0; // counts consecutive failures; reset for success
 							} catch (JSException | IOException e) {
@@ -1058,9 +1059,9 @@ public class FFmpegProcess {
 					int attempts = 0; 
 					try {
 						do {
-							_signalLevel = _signalLevelQueue.take();
+							int __signalLevel = _signalLevel = _signalLevelQueue.take();
 							try {
-								jsWindow.call(wavLevelChangeCallback, new Object[] { id, _signalLevel });
+								Platform.runLater(() -> jsWindow.call(wavLevelChangeCallback, new Object[] { id, __signalLevel }));
 								if (attempts > 0)
 									attempts = 0; // counts consecutive failures; reset for success
 							} catch (JSException e) {
@@ -1341,7 +1342,9 @@ public class FFmpegProcess {
 												throw e;
 											}
 										} else {
-											jsWindow.call(processFrameCallback, new Object[] { id, fd.sn, dataOut.toDataUri(fd.bytes) });
+											int _sn = fd.sn;
+											String _dataUri = dataOut.toDataUri(fd.bytes);
+											Platform.runLater(() -> jsWindow.call(processFrameCallback, new Object[] { id, _sn, _dataUri }));
 										}
 									}
 									if (attempts > 0)

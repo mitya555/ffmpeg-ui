@@ -2,7 +2,7 @@
 .ui-button { /*float: right;*/ display: inline-block; cursor: pointer; /*margin-bottom: -3px;*/ }
 .ui-right { vertical-align: top; float: right; }
 
-input[type=checkbox] { width: 8px; height: 8px; }
+input[type=checkbox] { /*width: 8px; height: 8px;*/ margin-right: 5px; }
 
 /*************** round checkbox stuff ***************
 .roundCheckbox input[type=checkbox] { width: 3px; height: 3px; visibility: hidden; margin: 0; }
@@ -55,8 +55,9 @@ input[type=checkbox] { width: 8px; height: 8px; }
 body { /*color: #508; line-height: 1.2;*/ }
 
 .contCenter {  text-align: center; /*margin-top: 50%; float: none;*/ }
-
 .contRightTop { width: 20%; float: right; clear: both; margin: 4px 4px 0px 0px; min-width: 85px; }
+.contLeftTop { position: absolute; margin: 4px 4px 0px 0px; border: none; }
+
 .boxHead { text-align: center; /*white-space: nowrap;*/ min-width: 85px; cursor: default; }
 /*#playbackContainer .ui-icon { background-image: url("//code.jquery.com/ui/1.11.4/themes/black-tie/images/ui-icons_ededed_256x240.png"); }*/
 

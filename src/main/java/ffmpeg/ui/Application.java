@@ -59,8 +59,8 @@ public class Application {
                 properties.getProperty("url.base.ffmpegexe", "http://localhost:8080/ffmpeg/"),
                 properties.getProperty("url.base.rtmp", "rtmp://localhost/"),
                 properties.getProperty("url.base.http", "http://localhost:8080/"),
-                "debug-java&debug-ffmpeg&debug-js&os-name=" + JarLib.getOsName(), // ""
-                Map.of("debug", "yes")
+                "debug-js&os-name=" + JarLib.getOsName(), // "debug-java&debug-ffmpeg&"
+                Map.of("debug", "no") // "yes"
             );
         return new Scene(browser, 750, 500, Color.web("#666970"));
     }
@@ -106,11 +106,11 @@ public class Application {
 //        frame.setVisible(true);
 
         logger.info("Starting Application...");
-  
+
         var classLoader = Application.class.getClassLoader();
 
         consumeResource(classLoader, "logging.properties",
-                inputStream -> LogManager.getLogManager().updateConfiguration(inputStream, null));
+                inputStream -> LogManager.getLogManager().updateConfiguration(inputStream, (k) -> ((o, n) -> n == null ? o : n)));
 
         properties = new Properties();
         consumeResource(classLoader, "internal.properties", properties::load);

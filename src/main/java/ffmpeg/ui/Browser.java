@@ -1,6 +1,12 @@
 package ffmpeg.ui;
 
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
+
+import org.openjdk.jol.vm.VM;
 
 import img_applet.ImgApplet;
 import javafx.application.Platform;
@@ -17,17 +23,33 @@ import netscape.javascript.JSObject;
 
 public class Browser extends Region {
 
+    static Logger logger = Logger.getLogger(Browser.class.getName());
+
     final WebView browser = new WebView();
     final WebEngine engine = browser.getEngine();
     final ImgApplet applet;
+    long appletMemoryAddress;
+
+    private void setJsAppletReference() {
+        long newAppletMemoryAddress = VM.current().addressOf(applet);
+        if (appletMemoryAddress != newAppletMemoryAddress) {
+            appletMemoryAddress = newAppletMemoryAddress;
+            logger.info("ImgApplet instance memory address: " + newAppletMemoryAddress);
+            Platform.runLater(() -> getWindow().setMember("_applet", applet));
+        }
+    }
+
+    JSObject window = null;
 
     public JSObject getWindow() {
-        return (JSObject) engine.executeScript("window");
+        return window == null ? (window = (JSObject) engine.executeScript("window")) : window;
     }
 
     public void jsCall(String methodName, Object... args) {
         Platform.runLater(() -> getWindow().call(methodName, args));
     }
+
+    // ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     public Browser(String ffmpegExeBaseUrl, String rtmpBaseUrl, String httpBaseUrl,
             String queryString, Map<String,String> params) {
@@ -39,8 +61,9 @@ public class Browser extends Region {
         applet.init();
         engine.getLoadWorker().stateProperty().addListener((ov, oldState, newState) -> {
             if (newState == State.SUCCEEDED) {
-                JSObject window = getWindow();
-                window.call("onLoadHandler", applet);
+                setJsAppletReference();
+                getWindow().call("onLoadHandler");
+                // scheduler.scheduleAtFixedRate(this::setJsAppletReference, 1, 1, TimeUnit.SECONDS);
             }
         });
 //        // load the web page

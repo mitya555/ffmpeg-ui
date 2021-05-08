@@ -16,6 +16,7 @@ javafx {
 dependencies {
 
   implementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.3.0'
+  compileOnly group: 'org.openjdk.jol', name: 'jol-core', version: '0.10'
 
   // Use JUnit test framework
   testImplementation 'junit:junit:4.12'
