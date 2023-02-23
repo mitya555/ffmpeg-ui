@@ -1,7 +1,7 @@
 plugins {
   id 'java'
   id 'application'
-  id 'org.openjfx.javafxplugin' version '0.0.9'
+  id 'org.openjfx.javafxplugin' version '0.0.13'
 }
 
 repositories {
@@ -9,14 +9,17 @@ repositories {
 }
 
 javafx {
-  version = "15.0.1"
+  version = "17.0.6"
   modules = [ 'javafx.controls', 'javafx.swing', 'javafx.web' ]
 }
 
 dependencies {
 
-  implementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.3.0'
-  compileOnly group: 'org.openjdk.jol', name: 'jol-core', version: '0.10'
+  // implementation 'commons-io:commons-io:2.11.0'
+  implementation 'org.apache.commons:commons-compress:1.22'
+  implementation 'org.tukaani:xz:1.9'
+  implementation 'javax.xml.bind:jaxb-api:2.3.1'
+  compileOnly 'org.openjdk.jol:jol-core:0.16'
 
   // Use JUnit test framework
   testImplementation 'junit:junit:4.12'
