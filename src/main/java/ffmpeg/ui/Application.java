@@ -46,15 +46,15 @@ public class Application {
         fxPanel.setScene(scene);
     }
     private static Scene createScene() {
-//        Group root = new Group();
-//        Scene scene = new Scene(root, Color.ALICEBLUE);
-//        Text text = new Text();
-//        text.setX(40);
-//        text.setY(100);
-//        text.setFont(new Font(25));
-//        text.setText("Welcome JavaFX!");
-//        root.getChildren().add(text);
-//        return (scene);
+        // Group root = new Group();
+        // Scene scene = new Scene(root, Color.ALICEBLUE);
+        // Text text = new Text();
+        // text.setX(40);
+        // text.setY(100);
+        // text.setFont(new Font(25));
+        // text.setText("Welcome JavaFX!");
+        // root.getChildren().add(text);
+        // return (scene);
         browser = new Browser(
                 properties.getProperty("url.base.ffmpegexe", "http://localhost:8080/ffmpeg/"),
                 properties.getProperty("url.base.rtmp", "rtmp://localhost/"),
@@ -95,15 +95,15 @@ public class Application {
     }
 
     public static void main(String[] args) {
-//        JFrame frame = new JFrame("img-applet");
-//        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-//        ImgApplet applet = new ImgApplet();
-//        frame.getContentPane().add(applet);
-//        applet.init();
-//        applet.start();
-//        frame.pack();
-//        frame.setResizable(false);
-//        frame.setVisible(true);
+        // JFrame frame = new JFrame("img-applet");
+        // frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        // ImgApplet applet = new ImgApplet();
+        // frame.getContentPane().add(applet);
+        // applet.init();
+        // applet.start();
+        // frame.pack();
+        // frame.setResizable(false);
+        // frame.setVisible(true);
 
         logger.info("Starting Application...");
 
