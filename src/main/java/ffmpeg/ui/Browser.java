@@ -1,9 +1,9 @@
 package ffmpeg.ui;
 
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+// import java.util.concurrent.Executors;
+// import java.util.concurrent.ScheduledExecutorService;
+// import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import org.openjdk.jol.vm.VM;
@@ -13,9 +13,9 @@ import javafx.application.Platform;
 import javafx.concurrent.Worker.State;
 import javafx.geometry.HPos;
 import javafx.geometry.VPos;
-//import javafx.scene.Node;
-//import javafx.scene.layout.HBox;
-//import javafx.scene.layout.Priority;
+// import javafx.scene.Node;
+// import javafx.scene.layout.HBox;
+// import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
@@ -66,9 +66,9 @@ public class Browser extends Region {
                 // scheduler.scheduleAtFixedRate(this::setJsAppletReference, 1, 1, TimeUnit.SECONDS);
             }
         });
-//        // load the web page
-//        webEngine.load("http://www.google.com/");
-//        webEngine.load("/imgplay2-.htm");
+        // // load the web page
+        // webEngine.load("http://www.google.com/");
+        // webEngine.load("/imgplay2-.htm");
         engine.load(getClass().getClassLoader().getResource("imgplay2-.htm").toString() +
                 (queryString == null || queryString.trim().length() == 0
                 ? "" : "?" + queryString) + "#" + rtmpBaseUrl + "#" + httpBaseUrl);
@@ -76,11 +76,11 @@ public class Browser extends Region {
         getChildren().add(browser);
     }
 
-//    private Node createSpacer() {
-//        Region spacer = new Region();
-//        HBox.setHgrow(spacer, Priority.ALWAYS);
-//        return spacer;
-//    }
+    // private Node createSpacer() {
+    //     Region spacer = new Region();
+    //     HBox.setHgrow(spacer, Priority.ALWAYS);
+    //     return spacer;
+    // }
 
     @Override protected void layoutChildren() {
         double w = getWidth();
