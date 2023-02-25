@@ -28,13 +28,13 @@ public class FFmpeg {
 				// download ffmpeg from remoteVer
 				JarLib.deleteLocal(verFileName);
 				JarLib.deleteLocal(exeName);
-				final var archiveName = remoteVer != null && !remoteVer.isEmpty()
-					? remoteVer
-					: "ffmpeg.zip";
-				exe = JarLib.loadFile(new URL(baseUrl, archiveName), exeName, true);
-				exe.setExecutable(true, true);
-				JarLib.loadFile(new URL(baseUrl, verFileName), verFileName, true);
 			}
+			final var archiveName = remoteVer != null && !remoteVer.isEmpty()
+				? remoteVer
+				: "ffmpeg.zip";
+			exe = JarLib.loadFile(new URL(baseUrl, archiveName), exeName, true);
+			exe.setExecutable(true, true);
+			JarLib.loadFile(new URL(baseUrl, verFileName), verFileName, true);
 		} catch (IOException e) {
 			e.printStackTrace();
 			throw new RuntimeException(e);
