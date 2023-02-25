@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.*;
 // import java.util.zip.ZipEntry;
 // import java.util.zip.ZipInputStream;
+import java.nio.file.Path;
 
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
@@ -150,8 +151,12 @@ public class JarLib {
         var zipFile = new ZipFile(seekable)
       ) {
         baos = null;
-        for (var zipEntry : zipFile.getEntries(filename)) {
-          if (!zipEntry.isDirectory() && zipFile.canReadEntryData(zipEntry)) {
+        var iter = zipFile.getEntries().asIterator();
+        while (iter.hasNext()) {
+          var zipEntry = iter.next();
+          var path = Path.of(zipEntry.getName());
+          String _filename = path.getFileName() == null ? null : path.getFileName().toString(); 
+          if (!zipEntry.isDirectory() && filename.equals(_filename) && zipFile.canReadEntryData(zipEntry)) {
             try (var in = zipFile.getInputStream(zipEntry)) {
               copyStream(out, in);
             }

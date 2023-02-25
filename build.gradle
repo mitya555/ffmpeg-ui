@@ -24,3 +24,7 @@ dependencies {
   // Use JUnit test framework
   testImplementation 'junit:junit:4.12'
 }
+
+application {
+  mainClass = 'ffmpeg.ui.Application'
+}

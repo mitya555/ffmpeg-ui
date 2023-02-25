@@ -83,6 +83,9 @@ public class Application {
     private static void consumeResource(String uri, String resourceName, _Consumer consumer) {
         URLClassLoader ucl = null;
         try {
+            if (uri.contains("~") && "win".equalsIgnoreCase(JarLib.getOsName())) {
+                uri = uri.replace("~", System.getProperty("user.home").replace('\\', '/'));
+            }
             ucl = new URLClassLoader(new URL[] { new URI(uri).toURL() });
         } catch (MalformedURLException | URISyntaxException e) {
             e.printStackTrace();
