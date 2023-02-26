@@ -408,8 +408,7 @@ function onLoadHandler() {
 							'</div>' +
 						'</div>' +
 					'</div>');
-				var self = this;
-				this.$select = this.$dropdown.find("select").change(function () { self._updateDevice(); });
+				this.$select = this.$dropdown.find("select").change(() => this._updateDevice());
 				this.$div = this.$select.parent();
 				this.$dropdown.insertAfter(this.$ffmpegUi.find("label"));
 			}
@@ -563,36 +562,60 @@ function onLoadHandler() {
 			var $lineCont = $("#deviceContainer .boxHead + div").empty();
 			var deviceTypes = [];
 			// parse ffmpeg output
-			var re = isWin() ? /\[\s*dshow\s*@\s*[a-fA-F0-9]+\s*\]\s*"?(.*?)"?\s*\r?\n/ig :
-					isMac() ? /\[\s*AVFoundation.*@\s*[xXa-fA-F0-9]+\s*\]\s*"?(.*?)"?\s*\r?\n/ig :
-					/\[.*@\s*[a-fA-F0-9]+\s*\]\s*"?(.*?)"?\s*\r?\n/ig,
-				match,
-				arr = [];
-			while ((match = re.exec(res)) !== null) {
-				arr.push(match[1]);
-			}
-			re = isWin() ? /^\s*Direct\s*Show\s*(video|audio)\s*devices.*$/i :
-				isMac() ? /^\s*AVFoundation\s*(video|audio)\s*devices.*$/i :
-				/^.*(video|audio)\s*devices\s*.*$/i;
-			var re1 = /^\s*Could\s*not\s*enumerate\s*(video|audio)\s*devices\.?\s*$/i,
-				re2 = /^\s*Alternative\s+name\s*"?(.*?\s*)"?\s*$/i;
-			// add system devices
-			for (var i = 0; i < arr.length; i++) {
-				if (re.test(arr[i])) {
-					var deviceType = re.exec(arr[i])[1].toLowerCase();
-					deviceTypes.push(SystemDevice.current = new SystemDevice(deviceType));
-					$("<option></option>").attr({ "value": "", "disabled": "disabled" }).text(arr[i]).appendTo(SystemDevice.current.$select);
-				} else if (re1.test(arr[i])) {
-					$("<option></option>").attr({ "value": "", "disabled": "disabled" }).text(arr[i]).appendTo(SystemDevice.current.$select);
-				} else if (re2.test(arr[i + 1])) {
-					var altName = re2.exec(arr[i + 1])[1];
-					$("<option></option>").attr("value", altName).text(arr[i]).appendTo(SystemDevice.current.$select);
-					SystemDevice.current.devices.push({ name: altName, display: arr[i], index: SystemDevice.current.devices.length });
-					i++;
-				} else {
-					$("<option></option>").attr("value", arr[i]).text(arr[i]).appendTo(SystemDevice.current.$select);
-					SystemDevice.current.devices.push({ name: arr[i], display: arr[i], index: SystemDevice.current.devices.length });
-				}
+			const ffmpegOutputFormat = 'new';
+			switch (ffmpegOutputFormat) {
+				case 'old': {
+					let re = isWin() ? /\[\s*dshow\s*@\s*[a-fA-F0-9]+\s*\]\s*"?(.*?)"?\s*\r?\n/ig :
+							isMac() ? /\[\s*AVFoundation.*@\s*[xXa-fA-F0-9]+\s*\]\s*"?(.*?)"?\s*\r?\n/ig :
+							/\[.*@\s*[a-fA-F0-9]+\s*\]\s*"?(.*?)"?\s*\r?\n/ig,
+						match,
+						arr = [];
+					while ((match = re.exec(res)) !== null) {
+						arr.push(match[1]);
+					}
+					re = isWin() ? /^\s*Direct\s*Show\s*(video|audio)\s*devices.*$/i :
+						isMac() ? /^\s*AVFoundation\s*(video|audio)\s*devices.*$/i :
+						/^.*(video|audio)\s*devices\s*.*$/i;
+					let re1 = /^\s*Could\s*not\s*enumerate\s*(video|audio)\s*devices\.?\s*$/i,
+						re2 = /^\s*Alternative\s+name\s*"?(.*?\s*)"?\s*$/i;
+					// add system devices
+					for (let i = 0; i < arr.length; i++) {
+						if (re.test(arr[i])) {
+							let deviceType = re.exec(arr[i])[1].toLowerCase();
+							deviceTypes.push(SystemDevice.current = new SystemDevice(deviceType));
+							$("<option></option>").attr({ "value": "", "disabled": "disabled" }).text(arr[i]).appendTo(SystemDevice.current.$select);
+						} else if (re1.test(arr[i])) {
+							$("<option></option>").attr({ "value": "", "disabled": "disabled" }).text(arr[i]).appendTo(SystemDevice.current.$select);
+						} else if (re2.test(arr[i + 1])) {
+							let altName = re2.exec(arr[i + 1])[1];
+							$("<option></option>").attr("value", altName).text(arr[i]).appendTo(SystemDevice.current.$select);
+							SystemDevice.current.devices.push({ name: altName, display: arr[i], index: SystemDevice.current.devices.length });
+							i++;
+						} else {
+							$("<option></option>").attr("value", arr[i]).text(arr[i]).appendTo(SystemDevice.current.$select);
+							SystemDevice.current.devices.push({ name: arr[i], display: arr[i], index: SystemDevice.current.devices.length });
+						}
+					}
+				} break;
+				case 'new': {
+					const arr = [];
+					const re = /\[.*@.*\]\s*"(.*)"\s*\((.*)\)\s*\r?\n\[.*@.*\]\s*Alternative\s+name\s*"(.*)"\s*\r?\n/ig;
+					let match;
+					while ((match = re.exec(res)) !== null) {
+						arr.push({ name: match[1], type: match[2], altName: match[3] });
+					}
+					// add system devices
+					for (let i = 0; i < arr.length; i++) {
+						const device = arr[i];
+						let sysDev = deviceTypes.find(sd => sd.deviceType === device.type);
+						if (!sysDev) {
+							deviceTypes.push(sysDev = new SystemDevice(device.type));
+							$('<option />').attr({ value: '', disabled: 'disabled' }).text(device.type).appendTo(sysDev.$select);
+						}
+						sysDev.devices.push({ name: device.altName, display: device.name, index: sysDev.devices.length });
+						$('<option />').attr('value', device.altName).text(device.name).appendTo(sysDev.$select);
+					}
+				} break;
 			}
 			// add screen grab
 			deviceTypes.push(new DeviceType("screen"));
