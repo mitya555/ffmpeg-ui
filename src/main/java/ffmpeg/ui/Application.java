@@ -59,7 +59,7 @@ public class Application {
                 properties.getProperty("url.base.ffmpegexe", "http://localhost:8080/ffmpeg/"),
                 properties.getProperty("url.base.rtmp", "rtmp://localhost/"),
                 properties.getProperty("url.base.http", "http://localhost:8080/"),
-                "debug-js&os-name=" + JarLib.getOsName(), // "debug-java&debug-ffmpeg&"
+                "os-name=" + JarLib.getOsName(), // "debug-js&debug-java&debug-ffmpeg&"
                 Map.of("debug", "no") // "yes"
             );
         return new Scene(browser, 750, 500, Color.web("#666970"));
